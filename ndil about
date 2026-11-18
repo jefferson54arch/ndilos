@@ -1,0 +1,150 @@
+
+import sys
+import platform
+import shutil
+from pathlib import Path
+
+from PySide6.QtWidgets import (
+    QApplication, QMainWindow, QWidget,
+    QLabel, QPushButton, QVBoxLayout,
+    QHBoxLayout, QPlainTextEdit
+)
+
+STYLE = """
+QWidget {
+    background: #0b0912;
+    color: #eeeeff;
+    font-family: sans-serif;
+    font-size: 14px;
+}
+QLabel#title {
+    color: #c084fc;
+    font-size: 30px;
+    font-weight: bold;
+}
+QLabel#subtitle {
+    color: #a78bba;
+    font-size: 16px;
+}
+QPlainTextEdit {
+    background: #15111e;
+    border: 1px solid #493064;
+    border-radius: 10px;
+    padding: 12px;
+}
+QPushButton {
+    background: #9333ea;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 12px;
+}
+QPushButton:hover {
+    background: #a855f7;
+}
+"""
+
+def read_os_release():
+    path = Path("/etc/os-release")
+    if not path.exists():
+        return platform.system()
+
+    values = {}
+    for line in path.read_text(
+        encoding="utf-8", errors="replace"
+    ).splitlines():
+        if "=" in line:
+            key, value = line.split("=", 1)
+            values[key] = value.strip().strip('"')
+
+    return values.get("PRETTY_NAME", "Bilinmiyor")
+
+
+def read_memory():
+    path = Path("/proc/meminfo")
+    if not path.exists():
+        return "Bilinmiyor"
+
+    for line in path.read_text().splitlines():
+        if line.startswith("MemTotal:"):
+            kb = int(line.split()[1])
+            return f"{kb / 1024 / 1024:.2f} GB"
+
+    return "Bilinmiyor"
+
+
+class NDILAbout(QMainWindow):
+    def __init__(self):
+        super().__init__()
+
+        self.setWindowTitle("NDIL About")
+        self.resize(700, 560)
+
+        root = QWidget()
+        layout = QVBoxLayout(root)
+        layout.setContentsMargins(30, 25, 30, 25)
+
+        title = QLabel("NDIL OS")
+        title.setObjectName("title")
+
+        subtitle = QLabel("Sistem Bilgileri")
+        subtitle.setObjectName("subtitle")
+
+        self.info = QPlainTextEdit()
+        self.info.setReadOnly(True)
+
+        refresh = QPushButton("Bilgileri Yenile")
+        refresh.clicked.connect(self.refresh_info)
+
+        copy_button = QPushButton("Bilgileri Kopyala")
+        copy_button.clicked.connect(self.copy_info)
+
+        buttons = QHBoxLayout()
+        buttons.addWidget(refresh)
+        buttons.addWidget(copy_button)
+
+        layout.addWidget(title)
+        layout.addWidget(subtitle)
+        layout.addWidget(self.info)
+        layout.addLayout(buttons)
+
+        self.setCentralWidget(root)
+        self.setStyleSheet(STYLE)
+
+        self.refresh_info()
+
+    def refresh_info(self):
+        try:
+            disk = shutil.disk_usage("/")
+            disk_info = (
+                f"{disk.free / 1024**3:.1f} GB boş / "
+                f"{disk.total / 1024**3:.1f} GB toplam"
+            )
+        except OSError:
+            disk_info = "Bilinmiyor"
+
+        details = [
+            "NDIL OS 1.0",
+            "=" * 35,
+            f"İşletim sistemi: {read_os_release()}",
+            f"Kernel: {platform.release()}",
+            f"Mimari: {platform.machine()}",
+            f"İşlemci: {platform.processor() or 'Bilinmiyor'}",
+            f"RAM: {read_memory()}",
+            f"Disk: {disk_info}",
+            f"Python: {platform.python_version()}",
+        ]
+
+        self.info.setPlainText("\n".join(details))
+
+    def copy_info(self):
+        QApplication.clipboard().setText(
+            self.info.toPlainText()
+        )
+
+
+if __name__ == "__main__":
+    app = QApplication(sys.argv)
+    window = NDILAbout()
+    window.show()
+    sys.exit(app.exec())
