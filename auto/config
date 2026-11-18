@@ -3,7 +3,7 @@
 
 set -e
 
-lb config \
+lb config noauto \
   --distribution trixie \
   --architectures amd64 \
   --archive-areas "main contrib non-free non-free-firmware" \
