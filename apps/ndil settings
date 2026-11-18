@@ -1,0 +1,198 @@
+
+import sys
+import platform
+import subprocess
+
+from PySide6.QtWidgets import (
+    QApplication, QMainWindow, QWidget, QLabel,
+    QPushButton, QVBoxLayout, QHBoxLayout,
+    QStackedWidget, QMessageBox
+)
+from PySide6.QtCore import Qt
+
+STYLE = """
+QWidget {
+    background: #0b0912;
+    color: #eeeeff;
+    font-family: sans-serif;
+    font-size: 14px;
+}
+QLabel#title {
+    font-size: 27px;
+    font-weight: bold;
+    color: #c084fc;
+}
+QPushButton {
+    background: #211632;
+    border: 1px solid #493064;
+    border-radius: 9px;
+    padding: 12px;
+    text-align: left;
+}
+QPushButton:hover {
+    background: #48216c;
+    border-color: #a855f7;
+}
+QPushButton#active {
+    background: #7025a8;
+    border-color: #c084fc;
+}
+"""
+
+TOOLS = {
+    "Wi-Fi ve Ağ": "nm-connection-editor",
+    "Bluetooth": "blueman-manager",
+    "Ekran": "lxqt-config-monitor",
+    "Ses": "pavucontrol",
+    "Görünüm": "lxqt-config-appearance",
+    "Klavye": "lxqt-config-input",
+    "Güç": "lxqt-config-powermanagement",
+}
+
+
+class NDILSettings(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("NDIL Settings")
+        self.resize(950, 620)
+
+        root = QWidget()
+        main = QHBoxLayout(root)
+
+        sidebar = QVBoxLayout()
+        title = QLabel("NDIL SETTINGS")
+        title.setObjectName("title")
+        sidebar.addWidget(title)
+
+        self.stack = QStackedWidget()
+        self.buttons = []
+
+        names = [
+            "Genel Bakış",
+            "Wi-Fi ve Ağ",
+            "Bluetooth",
+            "Ekran",
+            "Ses",
+            "Görünüm",
+            "Klavye",
+            "Widget'lar",
+            "Güç",
+            "Sistem Bilgisi",
+        ]
+
+        for index, name in enumerate(names):
+            button = QPushButton(name)
+            button.clicked.connect(
+                lambda checked=False, i=index:
+                self.show_page(i)
+            )
+            sidebar.addWidget(button)
+            self.buttons.append(button)
+
+            page = self.make_page(name, index)
+            self.stack.addWidget(page)
+
+        sidebar.addStretch()
+
+        version = QLabel("NDIL OS Settings 1.0")
+        version.setStyleSheet("color: #a78bba;")
+        sidebar.addWidget(version)
+
+        main.addLayout(sidebar, 1)
+        main.addWidget(self.stack, 3)
+
+        self.setCentralWidget(root)
+        self.setStyleSheet(STYLE)
+        self.show_page(0)
+
+    def make_page(self, name, index):
+        page = QWidget()
+        layout = QVBoxLayout(page)
+
+        title = QLabel(name)
+        title.setObjectName("title")
+        layout.addWidget(title)
+
+        descriptions = {
+            0: "NDIL OS kontrol merkezine hoş geldin.",
+            7: "Masaüstü widget yönetimi yakında.",
+            9: (
+                f"İşletim sistemi: {platform.system()}\n"
+                f"Makine: {platform.machine()}\n"
+                f"İşlemci: {platform.processor() or 'Bilinmiyor'}\n"
+                f"Python: {platform.python_version()}"
+            ),
+        }
+
+        if index == 0:
+            layout.addWidget(QLabel(
+                "Sistem ayarlarını tek yerden yönet."
+            ))
+            for label in ["Wi-Fi ve Ağ", "Ses", "Görünüm"]:
+                layout.addWidget(QLabel("• " + label))
+
+        elif index in (7, 9):
+            info = QLabel(descriptions[index])
+            info.setWordWrap(True)
+            layout.addWidget(info)
+
+        else:
+            info = QLabel(
+                f"{name} ayarlarını yönetmek için "
+                "aşağıdaki düğmeyi kullan."
+            )
+            info.setWordWrap(True)
+            layout.addWidget(info)
+
+            button = QPushButton(
+                f"{name} ayarlarını aç"
+            )
+            button.clicked.connect(
+                lambda checked=False, n=name:
+                self.launch_tool(n)
+            )
+            layout.addWidget(button)
+
+        layout.addStretch()
+        return page
+
+    def show_page(self, index):
+        self.stack.setCurrentIndex(index)
+
+        for i, button in enumerate(self.buttons):
+            button.setObjectName(
+                "active" if i == index else ""
+            )
+            button.style().unpolish(button)
+            button.style().polish(button)
+
+    def launch_tool(self, name):
+        program = TOOLS.get(name)
+
+        if not program:
+            return
+
+        try:
+            subprocess.Popen(
+                [program],
+                start_new_session=True
+            )
+        except FileNotFoundError:
+            QMessageBox.warning(
+                self,
+                "NDIL Settings",
+                f"{program} sistemde bulunamadı."
+            )
+        except OSError as error:
+            QMessageBox.warning(
+                self,
+                "Başlatma hatası",
+                str(error)
+            )
+
+
+if __name__ == "__main__":
+    app = QApplication(sys.argv)
+    window = NDILSettings()
+    window.show()
+    sys.exit(app.exec())
