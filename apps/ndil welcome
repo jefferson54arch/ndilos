@@ -1,0 +1,132 @@
+
+import sys
+from PySide6.QtWidgets import (
+    QApplication, QMainWindow, QWidget, QLabel,
+    QPushButton, QVBoxLayout, QComboBox,
+    QStackedWidget, QHBoxLayout
+)
+from PySide6.QtCore import Qt
+
+STYLE = """
+QWidget {
+    background: #0b0912;
+    color: white;
+    font-family: sans-serif;
+    font-size: 14px;
+}
+QLabel#title {
+    color: #c084fc;
+    font-size: 30px;
+    font-weight: bold;
+}
+QComboBox {
+    background: #211632;
+    padding: 12px;
+    border: 1px solid #9333ea;
+    border-radius: 8px;
+}
+QPushButton {
+    background: #9333ea;
+    padding: 12px;
+    border-radius: 8px;
+    font-weight: bold;
+}
+QPushButton:hover {
+    background: #a855f7;
+}
+"""
+
+class Welcome(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("NDIL Welcome")
+        self.resize(700, 480)
+
+        root = QWidget()
+        layout = QVBoxLayout(root)
+        layout.setContentsMargins(45, 35, 45, 35)
+
+        self.pages = QStackedWidget()
+
+        intro = QWidget()
+        intro_layout = QVBoxLayout(intro)
+        title = QLabel("NDIL OS")
+        title.setObjectName("title")
+        title.setAlignment(Qt.AlignCenter)
+        intro_layout.addStretch()
+        intro_layout.addWidget(title)
+        intro_layout.addWidget(
+            QLabel("Yeni masaüstüne hoş geldin!")
+        )
+        intro_layout.addStretch()
+
+        language = QWidget()
+        language_layout = QVBoxLayout(language)
+        language_layout.addWidget(QLabel("Dil seçimi"))
+        self.lang = QComboBox()
+        self.lang.addItems(["Türkçe", "English"])
+        language_layout.addWidget(self.lang)
+
+        theme = QWidget()
+        theme_layout = QVBoxLayout(theme)
+        theme_layout.addWidget(QLabel("Masaüstü teması"))
+        self.theme = QComboBox()
+        self.theme.addItems(["Neon Purple", "Neon Blue"])
+        theme_layout.addWidget(self.theme)
+
+        finish = QWidget()
+        finish_layout = QVBoxLayout(finish)
+        finish_layout.addStretch()
+        finish_layout.addWidget(QLabel(
+            "Kurulum tercihlerin hazır!"
+        ))
+        finish_layout.addStretch()
+
+        for page in [intro, language, theme, finish]:
+            self.pages.addWidget(page)
+
+        buttons = QHBoxLayout()
+        self.back = QPushButton("Geri")
+        self.next = QPushButton("İleri")
+
+        self.back.clicked.connect(self.previous)
+        self.next.clicked.connect(self.advance)
+
+        buttons.addWidget(self.back)
+        buttons.addStretch()
+        buttons.addWidget(self.next)
+
+        layout.addWidget(self.pages)
+        layout.addLayout(buttons)
+
+        self.setCentralWidget(root)
+        self.setStyleSheet(STYLE)
+        self.update_buttons()
+
+    def advance(self):
+        if self.pages.currentIndex() < 3:
+            self.pages.setCurrentIndex(
+                self.pages.currentIndex() + 1
+            )
+        self.update_buttons()
+
+    def previous(self):
+        if self.pages.currentIndex() > 0:
+            self.pages.setCurrentIndex(
+                self.pages.currentIndex() - 1
+            )
+        self.update_buttons()
+
+    def update_buttons(self):
+        self.back.setEnabled(
+            self.pages.currentIndex() > 0
+        )
+        self.next.setText(
+            "Bitir" if self.pages.currentIndex() == 3
+            else "İleri"
+        )
+
+app = QApplication(sys.argv)
+window = Welcome()
+window.show()
+sys.exit(app.exec())
