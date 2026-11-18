@@ -1,0 +1,157 @@
+
+import sys
+import subprocess
+import shutil
+
+from PySide6.QtWidgets import (
+    QApplication, QMainWindow, QWidget,
+    QLabel, QPushButton, QVBoxLayout,
+    QHBoxLayout, QMessageBox
+)
+
+STYLE = """
+QWidget {
+    background: #0b0912;
+    color: #eeeeff;
+    font-family: sans-serif;
+}
+QLabel#title {
+    color: #c084fc;
+    font-size: 30px;
+    font-weight: bold;
+}
+QLabel#subtitle {
+    color: #a78bba;
+    font-size: 15px;
+}
+QPushButton {
+    background: #352044;
+    color: white;
+    border: 1px solid #693c91;
+    border-radius: 9px;
+    padding: 13px;
+    font-size: 14px;
+}
+QPushButton:hover {
+    background: #7025a8;
+}
+QPushButton#launch {
+    background: #9333ea;
+    font-weight: bold;
+}
+"""
+
+class NDILTerminal(QMainWindow):
+    def __init__(self):
+        super().__init__()
+
+        self.setWindowTitle("NDIL Terminal")
+        self.resize(650, 400)
+
+        root = QWidget()
+        layout = QVBoxLayout(root)
+        layout.setContentsMargins(35, 30, 35, 30)
+        layout.setSpacing(18)
+
+        title = QLabel("NDIL TERMINAL")
+        title.setObjectName("title")
+
+        subtitle = QLabel(
+            "Komut satırına hoş geldin."
+        )
+
+        description = QLabel(
+            "NDIL Terminal, QTerminal altyapısını kullanır.\n"
+            "Terminali ayrı bir pencerede açabilirsin."
+        )
+        description.setWordWrap(True)
+
+        self.status = QLabel(
+            "Terminal hazır."
+        )
+        self.status.setStyleSheet(
+            "color: #c084fc; padding: 10px;"
+        )
+
+        launch = QPushButton(
+            "Terminali Aç"
+        )
+        launch.setObjectName("launch")
+        launch.clicked.connect(self.open_terminal)
+
+        home = QPushButton(
+            "Ana Klasörü Aç"
+        )
+        home.clicked.connect(self.open_home)
+
+        buttons = QHBoxLayout()
+        buttons.addWidget(launch)
+        buttons.addWidget(home)
+
+        footer = QLabel(
+            "NDIL OS 1.0 | Powered by QTerminal"
+        )
+        footer.setStyleSheet("color: #8d789f;")
+
+        layout.addWidget(title)
+        layout.addWidget(subtitle)
+        layout.addSpacing(15)
+        layout.addWidget(description)
+        layout.addWidget(self.status)
+        layout.addLayout(buttons)
+        layout.addStretch()
+        layout.addWidget(footer)
+
+        self.setCentralWidget(root)
+        self.setStyleSheet(STYLE)
+
+    def open_terminal(self):
+        if not shutil.which("qterminal"):
+            self.show_error(
+                "QTerminal bulunamadı. "
+                "Sistemde qterminal paketinin kurulu "
+                "olduğunu kontrol et."
+            )
+            return
+
+        try:
+            subprocess.Popen(
+                ["qterminal"],
+                start_new_session=True
+            )
+            self.status.setText(
+                "QTerminal başlatıldı."
+            )
+        except OSError as error:
+            self.show_error(str(error))
+
+    def open_home(self):
+        if not shutil.which("pcmanfm-qt"):
+            self.show_error(
+                "PCManFM-Qt bulunamadı."
+            )
+            return
+
+        try:
+            subprocess.Popen(
+                ["pcmanfm-qt", "--home"],
+                start_new_session=True
+            )
+        except OSError as error:
+            self.show_error(str(error))
+
+    def show_error(self, message):
+        QMessageBox.warning(
+            self,
+            "NDIL Terminal",
+            message
+        )
+
+
+if __name__ == "__main__":
+    app = QApplication(sys.argv)
+
+    window = NDILTerminal()
+    window.show()
+
+    sys.exit(app.exec())
