@@ -1,0 +1,41 @@
+
+# NDIL OS - Desktop
+lxqt
+sddm
+qterminal
+pcmanfm-qt
+featherpad
+
+# Internet
+firefox-esr
+network-manager
+network-manager-gnome
+
+# System tools
+sudo
+curl
+wget
+git
+htop
+nano
+neofetch
+build-essential
+
+# Audio and video
+pipewire
+wireplumber
+pavucontrol
+vlc
+
+# Archive support
+zip
+unzip
+p7zip-full
+
+# AppImage support
+libfuse2t64
+
+# Fonts and Turkish support
+fonts-noto
+fonts-noto-color-emoji
+locales
