@@ -1,0 +1,144 @@
+
+import sys
+import subprocess
+from pathlib import Path
+
+from PySide6.QtWidgets import (
+    QApplication, QWidget, QLabel, QPushButton,
+    QVBoxLayout, QGridLayout, QFrame, QMessageBox
+)
+
+APPS = [
+    ("👋", "NDIL Welcome", "ndil_welcome.py"),
+    ("⚙️", "NDIL Settings", "ndil_settings.py"),
+    ("🛍️", "NDIL Store", "ndil_store.py"),
+    ("🔄", "NDIL Updater", "ndil_updater.py"),
+    ("ℹ️", "NDIL About", "ndil_about.py"),
+    ("📁", "NDIL Files", "ndil_files.py"),
+    ("🧩", "NDIL Widgets", "ndil_widgets.py"),
+    ("⌨️", "NDIL Terminal", "ndil_terminal.py"),
+]
+
+STYLE = """
+QWidget {
+    background: #0b0912;
+    color: white;
+    font-family: sans-serif;
+}
+QLabel#title {
+    color: #c084fc;
+    font-size: 30px;
+    font-weight: bold;
+}
+QFrame {
+    background: #181222;
+    border: 1px solid #493064;
+    border-radius: 12px;
+}
+QPushButton {
+    background: #9333ea;
+    border: none;
+    border-radius: 8px;
+    padding: 10px;
+    color: white;
+}
+QPushButton:hover {
+    background: #a855f7;
+}
+QPushButton:disabled {
+    background: #403448;
+    color: #aaa;
+}
+"""
+
+
+class NDILHub(QWidget):
+    def __init__(self):
+        super().__init__()
+
+        self.apps_dir = Path(__file__).resolve().parent
+
+        self.setWindowTitle("NDIL Hub")
+        self.resize(850, 620)
+
+        layout = QVBoxLayout(self)
+
+        title = QLabel("NDIL HUB")
+        title.setObjectName("title")
+
+        subtitle = QLabel(
+            "NDIL OS uygulama merkezi"
+        )
+
+        layout.addWidget(title)
+        layout.addWidget(subtitle)
+
+        grid = QGridLayout()
+        grid.setSpacing(14)
+
+        for index, (emoji, name, filename) in enumerate(APPS):
+            card = QFrame()
+            card_layout = QVBoxLayout(card)
+
+            icon = QLabel(emoji)
+            icon.setStyleSheet("font-size: 32px;")
+
+            label = QLabel(name)
+            label.setStyleSheet(
+                "color: #c084fc; font-size: 18px;"
+                "font-weight: bold; border: none;"
+            )
+
+            button = QPushButton("Aç")
+            script = self.apps_dir / filename
+
+            button.setEnabled(script.is_file())
+            if not script.is_file():
+                button.setText("Dosya bulunamadı")
+
+            button.clicked.connect(
+                lambda checked=False, f=filename:
+                self.launch(f)
+            )
+
+            card_layout.addWidget(icon)
+            card_layout.addWidget(label)
+            card_layout.addWidget(button)
+
+            grid.addWidget(card, index // 4, index % 4)
+
+        layout.addLayout(grid)
+
+        footer = QLabel("NDIL OS 1.0")
+        footer.setStyleSheet("color: #a78bba;")
+        layout.addWidget(footer)
+
+        self.setStyleSheet(STYLE)
+
+    def launch(self, filename):
+        script = self.apps_dir / filename
+
+        if not script.is_file():
+            QMessageBox.warning(
+                self, "NDIL Hub",
+                f"{filename} bulunamadı."
+            )
+            return
+
+        try:
+            subprocess.Popen(
+                [sys.executable, str(script)],
+                cwd=str(self.apps_dir),
+                start_new_session=True
+            )
+        except OSError as error:
+            QMessageBox.warning(
+                self, "Başlatma hatası", str(error)
+            )
+
+
+if __name__ == "__main__":
+    app = QApplication(sys.argv)
+    window = NDILHub()
+    window.show()
+    sys.exit(app.exec())
