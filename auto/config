@@ -1,0 +1,18 @@
+
+#!/bin/sh
+
+set -e
+
+lb config \
+  --distribution trixie \
+  --architectures amd64 \
+  --archive-areas "main contrib non-free non-free-firmware" \
+  --binary-images iso-hybrid \
+  --debian-installer false \
+  --bootappend-live "boot=live components locales=tr_TR.UTF-8 keyboard-layouts=tr" \
+  --iso-volume "NDIL_OS" \
+  --iso-application "NDIL OS Live System" \
+  --iso-publisher "NDIL OS Project" \
+  --apt-recommends true \
+  --firmware-binary true \
+  --firmware-chroot true
