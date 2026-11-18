@@ -1,0 +1,47 @@
+
+name: Build NDIL OS
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            live-build \
+            debootstrap \
+            squashfs-tools \
+            xorriso \
+            grub-pc-bin \
+            grub-efi-amd64-bin
+
+      - name: Prepare NDIL applications
+        run: |
+          sh scripts/prepare-apps.sh
+
+      - name: Configure live-build
+        run: |
+          chmod +x auto/config
+          sudo lb config
+
+      - name: Build NDIL OS
+        run: |
+          sudo lb build
+
+      - name: Upload NDIL ISO
+        uses: actions/upload-artifact@v4
+        with:
+          name: NDIL-OS-ISO
+          path: "*.iso"
+          if-no-files-found: error
