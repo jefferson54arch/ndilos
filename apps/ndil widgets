@@ -1,0 +1,234 @@
+
+import sys
+import os
+from pathlib import Path
+from datetime import datetime
+
+from PySide6.QtWidgets import (
+    QApplication, QMainWindow, QWidget, QLabel,
+    QVBoxLayout, QHBoxLayout, QGridLayout,
+    QFrame, QTextEdit, QPushButton
+)
+from PySide6.QtCore import QTimer, Qt
+
+STYLE = """
+QWidget {
+    background: #0b0912;
+    color: #eeeeff;
+    font-family: sans-serif;
+}
+QLabel#title {
+    color: #c084fc;
+    font-size: 28px;
+    font-weight: bold;
+}
+QFrame#card {
+    background: #181222;
+    border: 1px solid #643b85;
+    border-radius: 14px;
+}
+QLabel#cardtitle {
+    color: #c084fc;
+    font-size: 17px;
+    font-weight: bold;
+}
+QLabel#value {
+    color: white;
+    font-size: 23px;
+}
+QTextEdit {
+    background: #100d18;
+    border: 1px solid #493064;
+    border-radius: 8px;
+    padding: 8px;
+}
+QPushButton {
+    background: #9333ea;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 10px;
+}
+QPushButton:hover {
+    background: #a855f7;
+}
+"""
+
+NOTES_PATH = Path.home() / ".config" / "ndil" / "notes.txt"
+
+
+class WidgetCard(QFrame):
+    def __init__(self, title):
+        super().__init__()
+        self.setObjectName("card")
+        self.layout = QVBoxLayout(self)
+
+        self.heading = QLabel(title)
+        self.heading.setObjectName("cardtitle")
+        self.layout.addWidget(self.heading)
+
+
+class NDILWidgets(QMainWindow):
+    def __init__(self):
+        super().__init__()
+
+        self.setWindowTitle("NDIL Widgets")
+        self.resize(780, 570)
+
+        root = QWidget()
+        main = QVBoxLayout(root)
+        main.setContentsMargins(24, 22, 24, 22)
+
+        header = QHBoxLayout()
+
+        title = QLabel("NDIL WIDGETS")
+        title.setObjectName("title")
+
+        version = QLabel("Version 1.0")
+        version.setStyleSheet("color: #a78bba;")
+
+        header.addWidget(title)
+        header.addStretch()
+        header.addWidget(version)
+
+        main.addLayout(header)
+
+        grid = QGridLayout()
+        grid.setSpacing(14)
+
+        # Clock widget
+        self.clock = WidgetCard("Saat ve Tarih")
+        self.clock_value = QLabel()
+        self.clock_value.setObjectName("value")
+        self.clock_value.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.clock.layout.addWidget(self.clock_value)
+
+        # System monitor widget
+        self.monitor = WidgetCard("Sistem Monitörü")
+
+        self.ram_value = QLabel("RAM: Bilinmiyor")
+        self.cpu_value = QLabel("CPU: Bilinmiyor")
+
+        self.monitor.layout.addWidget(self.cpu_value)
+        self.monitor.layout.addWidget(self.ram_value)
+
+        # Notes widget
+        self.notes = WidgetCard("Hızlı Notlar")
+
+        self.note_editor = QTextEdit()
+        self.note_editor.setPlaceholderText(
+            "Notlarını buraya yaz..."
+        )
+
+        save_button = QPushButton("Notları Kaydet")
+        save_button.clicked.connect(self.save_notes)
+
+        self.notes.layout.addWidget(self.note_editor)
+        self.notes.layout.addWidget(save_button)
+
+        grid.addWidget(self.clock, 0, 0)
+        grid.addWidget(self.monitor, 0, 1)
+        grid.addWidget(self.notes, 1, 0, 1, 2)
+
+        main.addLayout(grid)
+
+        self.status = QLabel("NDIL Widgets hazır.")
+        self.status.setStyleSheet("color: #a78bba;")
+        main.addWidget(self.status)
+
+        self.setCentralWidget(root)
+        self.setStyleSheet(STYLE)
+
+        self.load_notes()
+
+        self.timer = QTimer(self)
+        self.timer.timeout.connect(self.refresh_widgets)
+        self.timer.start(1000)
+
+        self.refresh_widgets()
+
+    def refresh_widgets(self):
+        now = datetime.now()
+
+        self.clock_value.setText(
+            now.strftime("%H:%M:%S\n%d.%m.%Y")
+        )
+
+        self.cpu_value.setText(
+            "CPU yükü: " + self.get_cpu_load()
+        )
+
+        self.ram_value.setText(
+            "RAM kullanımı: " + self.get_memory()
+        )
+
+    def get_cpu_load(self):
+        try:
+            if hasattr(os, "getloadavg"):
+                load = os.getloadavg()[0]
+                return f"{load:.2f}"
+        except OSError:
+            pass
+
+        return "Bu sistemde kullanılamıyor"
+
+    def get_memory(self):
+        path = Path("/proc/meminfo")
+
+        if not path.exists():
+            return "Linux bilgisi bulunamadı"
+
+        try:
+            values = {}
+
+            for line in path.read_text().splitlines():
+                if ":" in line:
+                    key, value = line.split(":", 1)
+                    values[key] = int(value.split()[0])
+
+            total = values["MemTotal"]
+            available = values["MemAvailable"]
+
+            used = total - available
+            percentage = used / total * 100
+
+            return f"%{percentage:.1f}"
+
+        except (OSError, ValueError, KeyError):
+            return "Okunamadı"
+
+    def load_notes(self):
+        try:
+            if NOTES_PATH.exists():
+                self.note_editor.setPlainText(
+                    NOTES_PATH.read_text(encoding="utf-8")
+                )
+        except OSError:
+            self.status.setText("Notlar yüklenemedi.")
+
+    def save_notes(self):
+        try:
+            NOTES_PATH.parent.mkdir(
+                parents=True, exist_ok=True
+            )
+
+            NOTES_PATH.write_text(
+                self.note_editor.toPlainText(),
+                encoding="utf-8"
+            )
+
+            self.status.setText("Notlar kaydedildi!")
+
+        except OSError as error:
+            self.status.setText(
+                f"Kaydetme hatası: {error}"
+            )
+
+
+if __name__ == "__main__":
+    app = QApplication(sys.argv)
+
+    window = NDILWidgets()
+    window.show()
+
+    sys.exit(app.exec())
