@@ -39,3 +39,15 @@ libfuse2t64
 fonts-noto
 fonts-noto-color-emoji
 locales
+
+# NDIL application runtime
+python3
+python3-pyside6.qtwidgets
+
+# NDIL Store
+plasma-discover
+packagekit
+appstream
+
+# Device settings
+blueman
