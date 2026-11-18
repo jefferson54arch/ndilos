@@ -1,0 +1,257 @@
+
+import sys
+
+from PySide6.QtWidgets import (
+    QApplication, QMainWindow, QWidget, QLabel,
+    QPushButton, QVBoxLayout, QHBoxLayout,
+    QPlainTextEdit, QMessageBox
+)
+from PySide6.QtCore import QProcess, Qt
+
+STYLE = """
+QWidget {
+    background: #0b0912;
+    color: #eeeeff;
+    font-family: sans-serif;
+    font-size: 14px;
+}
+QLabel#title {
+    color: #c084fc;
+    font-size: 28px;
+    font-weight: bold;
+}
+QLabel#status {
+    color: #c084fc;
+    font-size: 17px;
+    padding: 12px;
+}
+QPushButton {
+    background: #9333ea;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 12px;
+    font-weight: bold;
+}
+QPushButton:disabled {
+    background: #44334f;
+    color: #aaaaaa;
+}
+QPlainTextEdit {
+    background: #15111e;
+    border: 1px solid #493064;
+    border-radius: 8px;
+    padding: 8px;
+}
+"""
+
+class NDILUpdater(QMainWindow):
+    def __init__(self):
+        super().__init__()
+
+        self.setWindowTitle("NDIL Updater")
+        self.resize(760, 540)
+
+        self.operation = None
+        self.output_buffer = ""
+        self.update_count = 0
+
+        root = QWidget()
+        layout = QVBoxLayout(root)
+        layout.setContentsMargins(28, 25, 28, 25)
+
+        title = QLabel("NDIL UPDATER")
+        title.setObjectName("title")
+
+        subtitle = QLabel(
+            "NDIL OS sistem güncelleme merkezi"
+        )
+
+        self.status = QLabel("Güncelleme kontrolü bekleniyor.")
+        self.status.setObjectName("status")
+
+        self.check_button = QPushButton(
+            "Güncellemeleri kontrol et"
+        )
+        self.install_button = QPushButton(
+            "Güncellemeleri yükle"
+        )
+        self.install_button.setEnabled(False)
+
+        buttons = QHBoxLayout()
+        buttons.addWidget(self.check_button)
+        buttons.addWidget(self.install_button)
+
+        self.log = QPlainTextEdit()
+        self.log.setReadOnly(True)
+        self.log.setPlaceholderText(
+            "İşlem kayıtları burada görünecek."
+        )
+
+        layout.addWidget(title)
+        layout.addWidget(subtitle)
+        layout.addWidget(self.status)
+        layout.addLayout(buttons)
+        layout.addWidget(QLabel("İşlem kayıtları"))
+        layout.addWidget(self.log)
+
+        self.setCentralWidget(root)
+        self.setStyleSheet(STYLE)
+
+        self.process = QProcess(self)
+        self.process.setProcessChannelMode(
+            QProcess.ProcessChannelMode.MergedChannels
+        )
+        self.process.readyReadStandardOutput.connect(
+            self.read_output
+        )
+        self.process.finished.connect(
+            self.command_finished
+        )
+        self.process.errorOccurred.connect(
+            self.process_error
+        )
+
+        self.check_button.clicked.connect(
+            self.check_updates
+        )
+        self.install_button.clicked.connect(
+            self.install_updates
+        )
+
+    def set_busy(self, busy):
+        self.check_button.setEnabled(not busy)
+        self.install_button.setEnabled(
+            not busy and self.update_count > 0
+        )
+
+    def start_command(self, operation, program, arguments):
+        if self.process.state() != QProcess.ProcessState.NotRunning:
+            return
+
+        self.operation = operation
+        self.output_buffer = ""
+
+        self.log.appendPlainText(
+            "\n> " + program + " " + " ".join(arguments)
+        )
+
+        self.set_busy(True)
+        self.process.start(program, arguments)
+
+    def check_updates(self):
+        self.update_count = 0
+        self.install_button.setEnabled(False)
+        self.status.setText(
+            "Paket listeleri yenileniyor..."
+        )
+
+        self.start_command(
+            "check",
+            "pkexec",
+            ["apt-get", "update"]
+        )
+
+    def install_updates(self):
+        if self.update_count <= 0:
+            return
+
+        answer = QMessageBox.question(
+            self,
+            "NDIL Updater",
+            "Mevcut paket güncellemeleri yüklensin mi?",
+            QMessageBox.StandardButton.Yes |
+            QMessageBox.StandardButton.No
+        )
+
+        if answer != QMessageBox.StandardButton.Yes:
+            return
+
+        self.status.setText(
+            "Güncellemeler yükleniyor..."
+        )
+
+        self.start_command(
+            "install",
+            "pkexec",
+            ["apt-get", "upgrade", "-y"]
+        )
+
+    def read_output(self):
+        data = bytes(
+            self.process.readAllStandardOutput()
+        ).decode("utf-8", errors="replace")
+
+        self.output_buffer += data
+
+        if data.strip():
+            self.log.appendPlainText(data.rstrip())
+
+    def command_finished(self, exit_code, exit_status):
+        operation = self.operation
+
+        if exit_code != 0:
+            self.status.setText(
+                "İşlem başarısız. Kayıtları kontrol et."
+            )
+            self.operation = None
+            self.set_busy(False)
+            return
+
+        if operation == "check":
+            self.status.setText(
+                "Güncellemeler listeleniyor..."
+            )
+
+            self.output_buffer = ""
+            self.operation = "list"
+
+            self.process.start(
+                "apt", ["list", "--upgradable"]
+            )
+            return
+
+        if operation == "list":
+            lines = [
+                line for line in self.output_buffer.splitlines()
+                if "/" in line and not line.startswith("Listing")
+            ]
+
+            self.update_count = len(lines)
+
+            if self.update_count:
+                self.status.setText(
+                    f"{self.update_count} güncelleme bulundu."
+                )
+            else:
+                self.status.setText(
+                    "Sistem güncel! Yeni güncelleme yok."
+                )
+
+        elif operation == "install":
+            self.status.setText(
+                "Güncelleme işlemi tamamlandı. "
+                "Yeniden kontrol edebilirsin."
+            )
+            self.update_count = 0
+
+        self.operation = None
+        self.set_busy(False)
+
+    def process_error(self, error):
+        if error == QProcess.ProcessError.FailedToStart:
+            self.status.setText(
+                "Komut başlatılamadı. "
+                "pkexec ve PolicyKit kurulumunu kontrol et."
+            )
+            self.operation = None
+            self.set_busy(False)
+
+
+if __name__ == "__main__":
+    app = QApplication(sys.argv)
+
+    window = NDILUpdater()
+    window.show()
+
+    sys.exit(app.exec())
