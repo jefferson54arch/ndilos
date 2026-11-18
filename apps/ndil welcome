@@ -1,11 +1,18 @@
 
 import sys
+import json
+from pathlib import Path
+
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QLabel,
     QPushButton, QVBoxLayout, QComboBox,
-    QStackedWidget, QHBoxLayout
+    QStackedWidget, QMessageBox
 )
 from PySide6.QtCore import Qt
+
+CONFIG_DIR = Path.home() / ".config" / "ndil"
+PREFERENCES = CONFIG_DIR / "welcome.json"
+MARKER = CONFIG_DIR / "welcome-complete"
 
 STYLE = """
 QWidget {
@@ -52,12 +59,12 @@ class Welcome(QMainWindow):
         intro_layout = QVBoxLayout(intro)
         title = QLabel("NDIL OS")
         title.setObjectName("title")
-        title.setAlignment(Qt.AlignCenter)
+        title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         intro_layout.addStretch()
         intro_layout.addWidget(title)
-        intro_layout.addWidget(
-            QLabel("Yeni masaüstüne hoş geldin!")
-        )
+        intro_layout.addWidget(QLabel(
+            "Yeni masaüstüne hoş geldin!"
+        ))
         intro_layout.addStretch()
 
         language = QWidget()
@@ -69,7 +76,7 @@ class Welcome(QMainWindow):
 
         theme = QWidget()
         theme_layout = QVBoxLayout(theme)
-        theme_layout.addWidget(QLabel("Masaüstü teması"))
+        theme_layout.addWidget(QLabel("Tema seçimi"))
         self.theme = QComboBox()
         self.theme.addItems(["Neon Purple", "Neon Blue"])
         theme_layout.addWidget(self.theme)
@@ -78,20 +85,22 @@ class Welcome(QMainWindow):
         finish_layout = QVBoxLayout(finish)
         finish_layout.addStretch()
         finish_layout.addWidget(QLabel(
-            "Kurulum tercihlerin hazır!"
+            "NDIL OS kullanıma hazır!\n"
+            "Tercihlerini kaydetmek için Bitir'e bas."
         ))
         finish_layout.addStretch()
 
         for page in [intro, language, theme, finish]:
             self.pages.addWidget(page)
 
-        buttons = QHBoxLayout()
         self.back = QPushButton("Geri")
         self.next = QPushButton("İleri")
 
         self.back.clicked.connect(self.previous)
         self.next.clicked.connect(self.advance)
 
+        from PySide6.QtWidgets import QHBoxLayout
+        buttons = QHBoxLayout()
         buttons.addWidget(self.back)
         buttons.addStretch()
         buttons.addWidget(self.next)
@@ -108,6 +117,10 @@ class Welcome(QMainWindow):
             self.pages.setCurrentIndex(
                 self.pages.currentIndex() + 1
             )
+        else:
+            self.finish()
+            return
+
         self.update_buttons()
 
     def previous(self):
@@ -126,7 +139,37 @@ class Welcome(QMainWindow):
             else "İleri"
         )
 
-app = QApplication(sys.argv)
-window = Welcome()
-window.show()
-sys.exit(app.exec())
+    def finish(self):
+        try:
+            CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+
+            preferences = {
+                "language": self.lang.currentText(),
+                "theme": self.theme.currentText()
+            }
+
+            PREFERENCES.write_text(
+                json.dumps(preferences, indent=2),
+                encoding="utf-8"
+            )
+
+            MARKER.write_text("complete\n", encoding="utf-8")
+
+            QMessageBox.information(
+                self,
+                "NDIL OS",
+                "Tercihlerin kaydedildi. Hoş geldin!"
+            )
+            self.close()
+
+        except OSError as error:
+            QMessageBox.critical(
+                self, "Kayıt hatası", str(error)
+            )
+
+
+if __name__ == "__main__":
+    app = QApplication(sys.argv)
+    window = Welcome()
+    window.show()
+    sys.exit(app.exec())
