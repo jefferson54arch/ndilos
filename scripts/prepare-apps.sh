@@ -41,4 +41,14 @@ Categories=System;Utility;
 StartupNotify=true
 EOF
 
+# Uygulama dosyalarının izinleri
+chmod 644 "$DEST"/*.py
+
+# İlk açılış betiğinin çalıştırma izni
+FIRST_RUN="$ROOT/config/includes.chroot/usr/local/bin/ndil-first-run"
+
+if [ -f "$FIRST_RUN" ]; then
+    chmod 755 "$FIRST_RUN"
+fi
+
 echo "$count NDIL uygulaması ISO için hazırlandı."
