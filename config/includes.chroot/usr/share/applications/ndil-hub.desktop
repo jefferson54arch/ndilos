@@ -1,0 +1,11 @@
+
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=NDIL Hub
+Comment=NDIL OS uygulama merkezi
+Exec=python3 /opt/ndil/apps/ndil_hub.py
+Icon=applications-system
+Terminal=false
+Categories=System;Utility;
+StartupNotify=true
